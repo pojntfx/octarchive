@@ -6,6 +6,7 @@ require (
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/rs/zerolog v1.27.0
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 )
 
 require (

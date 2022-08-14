@@ -18,6 +18,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/semaphore"
 )
 
 var (
@@ -36,7 +37,7 @@ func main() {
 	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
-	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")
+	concurrency := flag.Int64("concurrency", int64(runtime.GOMAXPROCS(0)), "Maximum amount of repositories to clone concurrently")
 
 	flag.Parse()
 
@@ -112,28 +113,37 @@ func main() {
 
 	slugs := []string{user.Login}
 	if *orgs {
-		res, err := ghttp.Get(fmt.Sprintf("%vuser/orgs", *api))
-		if err != nil {
-			panic(err)
-		}
-		if res.Body == nil {
-			panic(errInvalidAPIResponse)
-		}
-		defer res.Body.Close()
+		page := 1
+		for {
+			res, err := ghttp.Get(fmt.Sprintf("%vuser/orgs?per_page=100&page=%v", *api, page))
+			if err != nil {
+				panic(err)
+			}
+			if res.Body == nil {
+				panic(errInvalidAPIResponse)
+			}
+			defer res.Body.Close()
 
-		if res.StatusCode != http.StatusOK {
-			panic(errors.New(res.Status))
-		}
+			if res.StatusCode != http.StatusOK {
+				panic(errors.New(res.Status))
+			}
 
-		var organizations []struct {
-			Login string `json:"login"`
-		}
-		if err := json.NewDecoder(res.Body).Decode(&organizations); err != nil {
-			panic(err)
-		}
+			var organizations []struct {
+				Login string `json:"login"`
+			}
+			if err := json.NewDecoder(res.Body).Decode(&organizations); err != nil {
+				panic(err)
+			}
 
-		for _, organization := range organizations {
-			slugs = append(slugs, organization.Login)
+			for _, organization := range organizations {
+				slugs = append(slugs, organization.Login)
+			}
+
+			if len(organizations) < 100 {
+				break
+			}
+
+			page++
 		}
 	}
 
@@ -146,65 +156,78 @@ func main() {
 		cloneURL string
 	}
 	for _, slug := range slugs {
-		res, err := ghttp.Get(fmt.Sprintf("%vusers/%v/repos", *api, slug))
-		if err != nil {
-			panic(err)
-		}
-		if res.Body == nil {
-			panic(errInvalidAPIResponse)
-		}
-		defer res.Body.Close()
+		page := 1
+		for {
+			res, err := ghttp.Get(fmt.Sprintf("%vusers/%v/repos?per_page=100&page=%v", *api, slug, page))
+			if err != nil {
+				panic(err)
+			}
+			if res.Body == nil {
+				panic(errInvalidAPIResponse)
+			}
+			defer res.Body.Close()
 
-		if res.StatusCode != http.StatusOK {
-			panic(errors.New(res.Status))
+			if res.StatusCode != http.StatusOK {
+				panic(errors.New(res.Status))
+			}
+
+			var orgRepos []struct {
+				FullName string `json:"full_name"`
+				CloneURL string `json:"clone_url"`
+			}
+			if err := json.NewDecoder(res.Body).Decode(&orgRepos); err != nil {
+				panic(err)
+			}
+
+			for _, repo := range orgRepos {
+				log.Debug().
+					Str("organization", slug).
+					Str("fullName", repo.FullName).
+					Str("cloneURL", repo.CloneURL).
+					Msg("Got repo for organization")
+
+				username, repoName := path.Split(repo.FullName)
+
+				repos = append(repos, struct {
+					filePath string
+					cloneURL string
+				}{
+					filePath: filepath.Join(*dst, *timestamp, username, repoName),
+					cloneURL: repo.CloneURL,
+				})
+			}
+
+			if len(orgRepos) < 100 {
+				break
+			}
+
+			page++
 		}
-
-		var orgRepos []struct {
-			FullName string `json:"full_name"`
-			CloneURL string `json:"clone_url"`
-		}
-		if err := json.NewDecoder(res.Body).Decode(&orgRepos); err != nil {
-			panic(err)
-		}
-
-		for _, repo := range orgRepos {
-			log.Debug().
-				Str("organization", slug).
-				Str("fullName", repo.FullName).
-				Str("cloneURL", repo.CloneURL).
-				Msg("Got repo for organization")
-
-			username, repoName := path.Split(repo.FullName)
-
-			repos = append(repos, struct {
-				filePath string
-				cloneURL string
-			}{
-				filePath: filepath.Join(*dst, *timestamp, username, repoName),
-				cloneURL: repo.CloneURL,
-			})
-		}
-
 	}
 
-	sem := make(chan int, *concurrency)
+	sem := semaphore.NewWeighted(*concurrency)
 	for _, repo := range repos {
-		sem <- 1
+		sem.Acquire(ctx, 1)
 
 		go func(repo struct {
 			filePath string
 			cloneURL string
 		}) {
+			defer sem.Release(1)
+
 			log.Info().
 				Str("cloneURL", repo.cloneURL).
 				Str("filePath", repo.filePath).
 				Msg("Cloning repo")
+
 			if err := os.RemoveAll(repo.filePath); err != nil {
 				panic(err)
 			}
+
 			if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
 				panic(err)
 			}
+
 			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
 				Progress: os.Stderr,
 				URL:      repo.cloneURL,
@@ -213,14 +236,26 @@ func main() {
 					Password: *token,
 				},
 			}); err != nil {
+				if err.Error() == "remote repository is empty" {
+					log.Info().
+						Str("cloneURL", repo.cloneURL).
+						Str("filePath", repo.filePath).
+						Msg("Skipped empty repo")
+
+					return
+				}
+
 				panic(err)
 			}
+
 			log.Info().
 				Str("cloneURL", repo.cloneURL).
 				Str("filePath", repo.filePath).
 				Msg("Cloned repo")
-
-			<-sem
 		}(repo)
+	}
+
+	if err := sem.Acquire(ctx, *concurrency); err != nil {
+		panic(err)
 	}
 }
