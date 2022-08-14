@@ -123,6 +123,8 @@ $ sudo systemctl enable octarchive.timer --now
 
 Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service.
 
+You should find the repos in `/root/.local/share/octarchive/var/lib/octarchive/data`.
+
 For more information, see the [reference](#reference).
 
 🚀 **That's it!** We hope you enjoy using Octarchive.
