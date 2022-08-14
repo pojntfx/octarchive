@@ -13,6 +13,52 @@ Simple tool to back up all repos on a GitHub/Gitea account to a local folder.
 
 ## Overview
 
+Octarchive is a simple backup utility that clones all repos from a GitHub/Gitea account to a local folder for storage.
+
+It enables you too ...
+
+- **Backup your work**: In case your GitHub account is breached or gets banned, Octarchive ensures you always have a local copy available.
+- **Mirror your account**: If your internet connection is slow or GitHub is banned in your jurisdiction, you can use Octarchive and a web server to mirror your repos.
+- **Automate processes**: By exposing all of your repos to the filesystem, otherwise tedious processes such as bumping copyright dates or updating names become easy.
+
+## Installation
+
+### Containerized
+
+You can get the OCI image like so:
+
+```shell
+$ podman pull ghcr.io/pojntfx/octarchive
+```
+
+### Natively
+
+Static binaries are available on [GitHub releases](https://github.com/pojntfx/octarchive/releases).
+
+On Linux, you can install them like so:
+
+```shell
+$ curl -L -o /tmp/octarchive "https://github.com/pojntfx/octarchive/releases/latest/download/octarchive.linux-$(uname -m)"
+$ sudo install /tmp/octarchive /usr/local/bin
+```
+
+On macOS, you can use the following:
+
+```shell
+$ curl -L -o /tmp/octarchive "https://github.com/pojntfx/octarchive/releases/latest/download/octarchive.darwin-$(uname -m)"
+$ sudo install /tmp/octarchive /usr/local/bin
+```
+
+On Windows, the following should work (using PowerShell as administrator):
+
+```shell
+PS> Invoke-WebRequest https://github.com/pojntfx/octarchive/releases/latest/download/octarchive.windows-x86_64.exe -OutFile \Windows\System32\octarchive.exe
+```
+
+You can find binaries for more operating systems and architectures on [GitHub releases](https://github.com/pojntfx/octarchive/releases).
+
+## Usage
+
 🚧 This project is a work-in-progress! Instructions will be added as soon as it is usable. 🚧
 
 ## License
