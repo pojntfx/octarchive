@@ -100,6 +100,7 @@ Description=Octarchive backup
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/octarchive --orgs
+Environment="HOME=/root"
 Environment="GITHUB_TOKEN=mygithubtoken"
 
 [Install]
