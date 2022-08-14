@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -17,6 +18,7 @@ import (
 	gtransport "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/semaphore"
 )
@@ -37,7 +39,7 @@ func main() {
 	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
-	concurrency := flag.Int64("concurrency", int64(runtime.GOMAXPROCS(0)), "Maximum amount of repositories to clone concurrently")
+	concurrency := flag.Int64("concurrency", int64(runtime.NumCPU()), "Maximum amount of repositories to clone concurrently")
 
 	flag.Parse()
 
@@ -205,6 +207,26 @@ func main() {
 		}
 	}
 
+	bar := progressbar.NewOptions(
+		len(repos),
+		progressbar.OptionSetDescription("Cloning"),
+		progressbar.OptionSetItsString("repo"),
+		progressbar.OptionSetWriter(os.Stderr),
+		progressbar.OptionThrottle(100*time.Millisecond),
+		progressbar.OptionShowCount(),
+		progressbar.OptionShowIts(),
+		progressbar.OptionFullWidth(),
+		// VT-100 compatibility
+		progressbar.OptionUseANSICodes(true),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "=",
+			SaucerHead:    ">",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}),
+	)
+
 	sem := semaphore.NewWeighted(*concurrency)
 	for _, repo := range repos {
 		sem.Acquire(ctx, 1)
@@ -213,12 +235,18 @@ func main() {
 			filePath string
 			cloneURL string
 		}) {
-			defer sem.Release(1)
+			defer func() {
+				bar.Add(1)
+
+				sem.Release(1)
+			}()
 
 			log.Info().
 				Str("cloneURL", repo.cloneURL).
 				Str("filePath", repo.filePath).
 				Msg("Cloning repo")
+
+			bar.RenderBlank()
 
 			if err := os.RemoveAll(repo.filePath); err != nil {
 				panic(err)
@@ -229,8 +257,14 @@ func main() {
 			}
 
 			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
-				Progress: os.Stderr,
-				URL:      repo.cloneURL,
+				Progress: func() io.Writer {
+					if *verbose > 5 {
+						return os.Stderr
+					}
+
+					return nil
+				}(),
+				URL: repo.cloneURL,
 				Auth: &gtransport.BasicAuth{
 					Username: user.Login,
 					Password: *token,
