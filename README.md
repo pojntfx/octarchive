@@ -61,6 +61,63 @@ You can find binaries for more operating systems and architectures on [GitHub re
 
 🚧 This project is a work-in-progress! Instructions will be added as soon as it is usable. 🚧
 
+## Reference
+
+### Command Line Arguments
+
+```shell
+$ octarchive --help
+Usage of octarchive:
+  -api string
+        GitHub/Gitea API endpoint to use (can also be set using the GITHUB_API env variable) (default "https://api.github.com/")
+  -concurrency int
+        Maximum amount of repositories to clone concurrently (default 20)
+  -dst string
+        Base directory to clone repos into (default "/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data")
+  -fresh
+        Clear timestamp directory before starting to clone
+  -orgs
+        Also clone repos of all orgs that the user is part of
+  -timestamp string
+        Timestamp to use as the directory for this clone session (default "1660513831")
+  -token string
+        GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)
+  -verbose int
+        Verbosity level (0 is disabled, default is info, 7 is trace) (default 5)
+```
+
+### Environment Variables
+
+You can set the following environment variables, which correspond to the values that can be set using the following flags:
+
+| Environment Variable | Flag      |
+| -------------------- | --------- |
+| `GITHUB_API`         | `--api`   |
+| `GITHUB_TOKEN`       | `--token` |
+
+## Acknowledgements
+
+- [go-git/go-git](https://github.com/go-git/go-git) provides the Git library.
+
+To all the rest of the authors who worked on the dependencies used: **Thanks a lot!**
+
+## Contributing
+
+To contribute, please use the [GitHub flow](https://guides.github.com/introduction/flow/) and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
+
+To build and start a development version of Octarchive locally, run the following:
+
+```shell
+$ git clone https://github.com/pojntfx/octarchive.git
+$ cd octarchive
+$ make depend
+$ make && sudo make install
+$ export GITHUB_TOKEN='mygithubtoken'
+$ octarchive
+```
+
+Have any questions or need help? Chat with us [on Matrix](https://matrix.to/#/#octarchive:matrix.org?via=matrix.org)!
+
 ## License
 
 Octarchive (c) 2022 Felicitas Pojtinger and contributors
