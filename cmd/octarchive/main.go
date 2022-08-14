@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -35,6 +36,7 @@ func main() {
 	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
+	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")
 
 	flag.Parse()
 
@@ -185,34 +187,40 @@ func main() {
 
 	}
 
+	sem := make(chan int, *concurrency)
 	for _, repo := range repos {
-		log.Info().
-			Str("cloneURL", repo.cloneURL).
-			Str("filePath", repo.filePath).
-			Msg("Cloning repo")
+		sem <- 1
 
-		if err := os.RemoveAll(repo.filePath); err != nil {
-			panic(err)
-		}
+		go func(repo struct {
+			filePath string
+			cloneURL string
+		}) {
+			log.Info().
+				Str("cloneURL", repo.cloneURL).
+				Str("filePath", repo.filePath).
+				Msg("Cloning repo")
+			if err := os.RemoveAll(repo.filePath); err != nil {
+				panic(err)
+			}
+			if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
+				panic(err)
+			}
+			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
+				Progress: os.Stderr,
+				URL:      repo.cloneURL,
+				Auth: &gtransport.BasicAuth{
+					Username: user.Login,
+					Password: *token,
+				},
+			}); err != nil {
+				panic(err)
+			}
+			log.Info().
+				Str("cloneURL", repo.cloneURL).
+				Str("filePath", repo.filePath).
+				Msg("Cloned repo")
 
-		if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
-			panic(err)
-		}
-
-		if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
-			Progress: os.Stderr,
-			URL:      repo.cloneURL,
-			Auth: &gtransport.BasicAuth{
-				Username: user.Login,
-				Password: *token,
-			},
-		}); err != nil {
-			panic(err)
-		}
-
-		log.Info().
-			Str("cloneURL", repo.cloneURL).
-			Str("filePath", repo.filePath).
-			Msg("Cloned repo")
+			<-sem
+		}(repo)
 	}
 }
