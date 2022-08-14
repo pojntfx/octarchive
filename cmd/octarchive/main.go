@@ -39,6 +39,7 @@ func main() {
 	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
+	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
 	concurrency := flag.Int64("concurrency", int64(runtime.NumCPU()), "Maximum amount of repositories to clone concurrently")
 
 	flag.Parse()
@@ -226,6 +227,13 @@ func main() {
 			BarEnd:        "]",
 		}),
 	)
+
+	if *fresh {
+		if err := os.RemoveAll(filepath.Join(*dst, *timestamp)); err != nil {
+
+			panic(err)
+		}
+	}
 
 	sem := semaphore.NewWeighted(*concurrency)
 	for _, repo := range repos {
