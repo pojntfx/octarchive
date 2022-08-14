@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
@@ -69,6 +70,10 @@ func main() {
 
 	if *token == "" {
 		*token = os.Getenv("GITHUB_TOKEN")
+	}
+
+	if strings.TrimSpace(*token) == "" {
+		panic("missing token")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

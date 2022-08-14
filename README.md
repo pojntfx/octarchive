@@ -59,7 +59,72 @@ You can find binaries for more operating systems and architectures on [GitHub re
 
 ## Usage
 
-🚧 This project is a work-in-progress! Instructions will be added as soon as it is usable. 🚧
+### 1. Do a manual backup with `octarchive`
+
+First, export your GitHub (or Gitea) API token like so:
+
+```shell
+$ export GITHUB_TOKEN='mygithubtoken'
+```
+
+If you're using Gitea, also export your API endpoint like so:
+
+```shell
+$ export GITHUB_API='https://try.gitea.io/api/'
+```
+
+Now, start the manual backup, including all the repos of the organizations that you're part of:
+
+```shell
+$ octarchive --orgs
+{"level":"info","time":"2022-08-15T00:25:39+02:00","message":"Getting user"}
+{"level":"info","time":"2022-08-15T00:25:40+02:00","message":"Getting organizations for user"}
+# ...
+Cloning   6% [========>                                                                                                                                                           ] (16/263, 7 repo/s) [1s:32s]{"level":"info","cloneURL":"https://github.com/pojntfx/dwm.git","filePath":"/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data/1660518181/pojntfx/dwm","time":"2022-08-15T01:03:09+02:00","message":"Cloning repo"}
+# ...
+```
+
+You should now find the repos in `${HOME}/.local/share/octarchive/var/lib/octarchive/data`.
+
+For more information, see the [reference](#reference).
+
+### 2. Schedule backups with systemd Timers
+
+In most cases, you'll want to schedule backups periodically; an excellent way to do so is to use [systemd Timers](https://wiki.archlinux.org/title/Systemd/Timers). To schedule a weekly backup of all of your repos, run the following:
+
+```shell
+$ sudo tee /etc/systemd/system/octarchive.service<<'EOT'
+[Unit]
+Description=Octarchive backup
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/octarchive --orgs
+Environment="GITHUB_TOKEN=mygithubtoken"
+
+[Install]
+WantedBy=multi-user.target
+EOT
+$ sudo tee /etc/systemd/system/octarchive.timer<<'EOT'
+[Unit]
+Description=Run Octarchive weekly
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOT
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable octarchive.timer --now
+```
+
+Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service.
+
+For more information, see the [reference](#reference).
+
+🚀 **That's it!** We hope you enjoy using Octarchive.
 
 ## Reference
 
