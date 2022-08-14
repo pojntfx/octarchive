@@ -8,8 +8,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"time"
 
+	"github.com/go-git/go-git/v5"
+	gtransport "github.com/go-git/go-git/v5/plumbing/transport/http"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/oauth2"
 )
 
@@ -23,21 +29,32 @@ func main() {
 		panic(err)
 	}
 
+	verbose := flag.Int("verbose", 5, "Verbosity level (0 is disabled, default is info, 7 is trace)")
 	orgs := flag.Bool("orgs", false, "Also clone repos of all orgs that the user is part of")
 	api := flag.String("api", "https://api.github.com/", "GitHub/Gitea API endpoint to use (can also be set using the GITHUB_API env variable)")
 	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
-	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Directory to clone repos into")
+	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
+	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
 
 	flag.Parse()
 
-	if !*orgs {
-		rawOrgs := os.Getenv("GITHUB_ORGS")
-
-		if rawOrgs == "TRUE" {
-			*orgs = true
-		} else {
-			*orgs = false
-		}
+	switch *verbose {
+	case 0:
+		zerolog.SetGlobalLevel(zerolog.Disabled)
+	case 1:
+		zerolog.SetGlobalLevel(zerolog.PanicLevel)
+	case 2:
+		zerolog.SetGlobalLevel(zerolog.FatalLevel)
+	case 3:
+		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+	case 4:
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case 5:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	case 6:
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	}
 
 	if *api == "" {
@@ -46,10 +63,6 @@ func main() {
 
 	if *token == "" {
 		*token = os.Getenv("GITHUB_TOKEN")
-	}
-
-	if *dst == "" {
-		*dst = os.Getenv("GITHUB_DST")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -66,6 +79,8 @@ func main() {
 			),
 		)
 	}
+
+	log.Info().Msg("Getting user")
 
 	res, err := ghttp.Get(fmt.Sprintf("%vuser", *api))
 	if err != nil {
@@ -87,7 +102,13 @@ func main() {
 		panic(err)
 	}
 
-	slugsToGetReposFor := []string{user.Login}
+	log.Debug().
+		Str("user", user.Login).
+		Msg("Got user")
+
+	log.Info().Msg("Getting organizations for user")
+
+	slugs := []string{user.Login}
 	if *orgs {
 		res, err := ghttp.Get(fmt.Sprintf("%vuser/orgs", *api))
 		if err != nil {
@@ -110,15 +131,19 @@ func main() {
 		}
 
 		for _, organization := range organizations {
-			slugsToGetReposFor = append(slugsToGetReposFor, organization.Login)
+			slugs = append(slugs, organization.Login)
 		}
 	}
 
+	log.Debug().
+		Strs("organizations", slugs).
+		Msg("Got organizations for user")
+
 	var repos []struct {
-		path     string
+		filePath string
 		cloneURL string
 	}
-	for _, slug := range slugsToGetReposFor {
+	for _, slug := range slugs {
 		res, err := ghttp.Get(fmt.Sprintf("%vusers/%v/repos", *api, slug))
 		if err != nil {
 			panic(err)
@@ -141,16 +166,53 @@ func main() {
 		}
 
 		for _, repo := range orgRepos {
+			log.Debug().
+				Str("organization", slug).
+				Str("fullName", repo.FullName).
+				Str("cloneURL", repo.CloneURL).
+				Msg("Got repo for organization")
+
+			username, repoName := path.Split(repo.FullName)
+
 			repos = append(repos, struct {
-				path     string
+				filePath string
 				cloneURL string
 			}{
-				path:     repo.FullName,
+				filePath: filepath.Join(*dst, *timestamp, username, repoName),
 				cloneURL: repo.CloneURL,
 			})
 		}
 
 	}
 
-	fmt.Println(repos)
+	for _, repo := range repos {
+		log.Info().
+			Str("cloneURL", repo.cloneURL).
+			Str("filePath", repo.filePath).
+			Msg("Cloning repo")
+
+		if err := os.RemoveAll(repo.filePath); err != nil {
+			panic(err)
+		}
+
+		if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
+			panic(err)
+		}
+
+		if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
+			Progress: os.Stderr,
+			URL:      repo.cloneURL,
+			Auth: &gtransport.BasicAuth{
+				Username: user.Login,
+				Password: *token,
+			},
+		}); err != nil {
+			panic(err)
+		}
+
+		log.Info().
+			Str("cloneURL", repo.cloneURL).
+			Str("filePath", repo.filePath).
+			Msg("Cloned repo")
+	}
 }
