@@ -167,8 +167,6 @@ You can set the following environment variables, which correspond to the values 
 
 - [go-git/go-git](https://github.com/go-git/go-git) provides the Git library.
 
-To all the rest of the authors who worked on the dependencies used: **Thanks a lot!**
-
 ## Contributing
 
 To contribute, please use the [GitHub flow](https://guides.github.com/introduction/flow/) and follow our [Code of Conduct](./CODE_OF_CONDUCT.md).
@@ -188,6 +186,6 @@ Have any questions or need help? Chat with us [on Matrix](https://matrix.to/#/#o
 
 ## License
 
-Octarchive (c) 2022 Felicitas Pojtinger and contributors
+Octarchive (c) 2023 Felicitas Pojtinger and contributors
 
 SPDX-License-Identifier: AGPL-3.0
