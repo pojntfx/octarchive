@@ -1,6 +1,6 @@
-# Octarchive
+<img alt="Project icon" style="vertical-align: middle;" src="./docs/icon.svg" width="128" height="128" align="left">
 
-![Logo](./docs/logo-readme.png)
+# Octarchive
 
 Simple tool to back up all repos on a GitHub/Gitea account to a local folder.
 
@@ -15,7 +15,7 @@ Simple tool to back up all repos on a GitHub/Gitea account to a local folder.
 
 Octarchive is a simple backup utility that clones all repos from a GitHub/Gitea account to a local folder for storage.
 
-It enables you too ...
+It enables you to:
 
 - **Backup your work**: In case your GitHub account is breached or gets banned, Octarchive ensures you always have a local copy available.
 - **Mirror your account**: If your internet connection is slow or GitHub is banned in your jurisdiction, you can use Octarchive and a web server to mirror your repos.
@@ -57,7 +57,7 @@ PS> Invoke-WebRequest https://github.com/pojntfx/octarchive/releases/latest/down
 
 You can find binaries for more operating systems and architectures on [GitHub releases](https://github.com/pojntfx/octarchive/releases).
 
-## Usage
+## Tutorial
 
 ### 1. Do a manual backup with `octarchive`
 
@@ -166,6 +166,7 @@ You can set the following environment variables, which correspond to the values 
 ## Acknowledgements
 
 - [go-git/go-git](https://github.com/go-git/go-git) provides the Git library.
+- [Font Awesome](https://fontawesome.com/) provides the assets used for the icon and logo.
 
 ## Contributing
 
@@ -186,6 +187,6 @@ Have any questions or need help? Chat with us [on Matrix](https://matrix.to/#/#o
 
 ## License
 
-Octarchive (c) 2023 Felicitas Pojtinger and contributors
+Octarchive (c) 2024 Felicitas Pojtinger and contributors
 
 SPDX-License-Identifier: AGPL-3.0
