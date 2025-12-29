@@ -48,6 +48,7 @@ func main() {
 	timestamp := flag.String("timestamp", strconv.FormatInt(time.Now().Unix(), 10), "Timestamp to use as the directory for this clone session")
 	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
 	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")
+	shallow := flag.Bool("shallow", false, "Perform a shallow clone with depth=1 and only the main branch")
 
 	flag.Parse()
 
@@ -291,7 +292,7 @@ func main() {
 				return err
 			}
 
-			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
+			opts := &git.CloneOptions{
 				Progress: func() io.Writer {
 					if level == slog.LevelDebug {
 						return os.Stderr
@@ -304,7 +305,14 @@ func main() {
 					Username: user.Login,
 					Password: *token,
 				},
-			}); err != nil {
+			}
+
+			if *shallow {
+				opts.Depth = 1
+				opts.SingleBranch = true
+			}
+
+			if _, err := git.PlainClone(repo.filePath, false, opts); err != nil {
 				if errors.Is(err, transport.ErrEmptyRemoteRepository) {
 					log.Info("Skipped empty repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 

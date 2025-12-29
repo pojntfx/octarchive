@@ -148,8 +148,10 @@ Usage of octarchive:
         Clear timestamp directory before starting to clone
   -orgs
         Also clone repos of all orgs that the user is part of
+  -shallow
+        Perform a shallow clone with depth=1 and only the main branch
   -timestamp string
-        Timestamp to use as the directory for this clone session (default "1767007525")
+        Timestamp to use as the directory for this clone session (default "1767026440")
   -token string
         GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)
   -verbosity string
