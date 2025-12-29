@@ -125,7 +125,18 @@ $ sudo systemctl enable octarchive.timer --now
 
 Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service. If you'd like to clone from multiple GitHub/Forgejo accounts, simply set up a new timer for each.
 
-You should find the repos in `/root/.local/share/octarchive/var/lib/octarchive/data`.
+You should find the repos in `/root/.local/share/octarchive`, in a folder structure that looks like this:
+
+```plaintext
+/root/.local/share/octarchive/
+├── api.github.com
+│   └── 1767027067
+│       └── pojntfx
+│           ├── abizeitung/...
+│           ├── adwaita-gtk-ubuntu/...
+│           ├── adwaita-gtk-ubuntu-legacy/...
+│           ├── ...
+```
 
 For more information, see the [reference](#reference).
 
@@ -143,7 +154,7 @@ Usage of octarchive:
   -concurrency int
         Maximum amount of repositories to clone concurrently (default 24)
   -dst string
-        Base directory to clone repos into (default "/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data")
+        Base directory to clone repos into (default "/home/pojntfx/.local/share/octarchive")
   -fresh
         Clear timestamp directory before starting to clone
   -orgs
@@ -153,7 +164,7 @@ Usage of octarchive:
   -shallow
         Perform a shallow clone with depth=1 and only the main branch
   -timestamp string
-        Timestamp to use as the directory for this clone session (default "1767026814")
+        Timestamp to use as the directory for this clone session (default "1767027019")
   -token string
         GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)
   -verbosity string

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	gtransport "github.com/go-git/go-git/v5/plumbing/transport/http"
@@ -35,16 +36,11 @@ type repoInfo struct {
 }
 
 func main() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
-
 	verbosity := flag.String("verbosity", "info", "Log level (debug, info, warn, error)")
 	orgs := flag.Bool("orgs", false, "Also clone repos of all orgs that the user is part of")
 	api := flag.String("api", "https://api.github.com/", "GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable)")
 	token := flag.String("token", "", "GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)")
-	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
+	dst := flag.String("dst", filepath.Join(xdg.DataHome, "octarchive"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", strconv.FormatInt(time.Now().Unix(), 10), "Timestamp to use as the directory for this clone session")
 	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
 	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")

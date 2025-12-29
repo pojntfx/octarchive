@@ -3,6 +3,7 @@ module github.com/pojntfx/octarchive
 go 1.25.5
 
 require (
+	github.com/adrg/xdg v0.5.3
 	github.com/go-git/go-git/v5 v5.16.4
 	github.com/schollz/progressbar/v3 v3.19.0
 	golang.org/x/oauth2 v0.34.0
