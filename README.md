@@ -8,7 +8,7 @@ Simple tool to back up all repos on a GitHub/Forgejo account to a local folder.
 
 [![hydrun CI](https://github.com/pojntfx/octarchive/actions/workflows/hydrun.yaml/badge.svg)](https://github.com/pojntfx/octarchive/actions/workflows/hydrun.yaml)
 [![Docker CI](https://github.com/pojntfx/octarchive/actions/workflows/docker.yaml/badge.svg)](https://github.com/pojntfx/octarchive/actions/workflows/docker.yaml)
-![Go Version](https://img.shields.io/badge/go%20version-%3E=1.18-61CFDD.svg)
+![Go Version](https://img.shields.io/badge/go%20version-%3E=1.25-61CFDD.svg)
 [![Go Reference](https://pkg.go.dev/badge/github.com/pojntfx/octarchive.svg)](https://pkg.go.dev/github.com/pojntfx/octarchive)
 [![Matrix](https://img.shields.io/matrix/octarchive:matrix.org)](https://matrix.to/#/#octarchive:matrix.org?via=matrix.org)
 

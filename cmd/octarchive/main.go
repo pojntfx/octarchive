@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -14,19 +13,26 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 	gtransport "github.com/go-git/go-git/v5/plumbing/transport/http"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
-	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
 	errInvalidAPIResponse = errors.New("invalid API response")
 )
+
+type repoInfo struct {
+	filePath string
+	cloneURL string
+}
 
 func main() {
 	home, err := os.UserHomeDir()
@@ -39,9 +45,9 @@ func main() {
 	api := flag.String("api", "https://api.github.com/", "GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable)")
 	token := flag.String("token", "", "GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
-	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
+	timestamp := flag.String("timestamp", strconv.FormatInt(time.Now().Unix(), 10), "Timestamp to use as the directory for this clone session")
 	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
-	concurrency := flag.Int64("concurrency", int64(runtime.NumCPU()), "Maximum amount of repositories to clone concurrently")
+	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")
 
 	flag.Parse()
 
@@ -136,7 +142,7 @@ func main() {
 
 			q := parsed.Query()
 			q.Set("per_page", "100")
-			q.Set("page", fmt.Sprintf("%v", page))
+			q.Set("page", strconv.Itoa(page))
 			parsed.RawQuery = q.Encode()
 
 			log := log.With("url", parsed.String())
@@ -177,10 +183,7 @@ func main() {
 
 	log.Debug("Got organizations for user", "organizations", slugs)
 
-	var repos []struct {
-		filePath string
-		cloneURL string
-	}
+	var repos []repoInfo
 	for _, slug := range slugs {
 		page := 1
 		for {
@@ -196,7 +199,7 @@ func main() {
 
 			q := parsed.Query()
 			q.Set("per_page", "100")
-			q.Set("page", fmt.Sprintf("%v", page))
+			q.Set("page", strconv.Itoa(page))
 			parsed.RawQuery = q.Encode()
 
 			log := log.With("url", parsed.String())
@@ -229,10 +232,7 @@ func main() {
 
 				username, repoName := path.Split(repo.FullName)
 
-				repos = append(repos, struct {
-					filePath string
-					cloneURL string
-				}{
+				repos = append(repos, repoInfo{
 					filePath: filepath.Join(*dst, hostname, *timestamp, username, repoName),
 					cloneURL: repo.CloneURL,
 				})
@@ -272,30 +272,23 @@ func main() {
 		}
 	}
 
-	sem := semaphore.NewWeighted(*concurrency)
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(*concurrency)
+
 	for _, repo := range repos {
-		sem.Acquire(ctx, 1)
-
-		go func(repo struct {
-			filePath string
-			cloneURL string
-		}) {
-			defer func() {
-				bar.Add(1)
-
-				sem.Release(1)
-			}()
+		g.Go(func() error {
+			defer bar.Add(1)
 
 			log.Info("Cloning repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 
 			bar.RenderBlank()
 
 			if err := os.RemoveAll(repo.filePath); err != nil {
-				panic(err)
+				return err
 			}
 
 			if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
-				panic(err)
+				return err
 			}
 
 			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
@@ -312,20 +305,22 @@ func main() {
 					Password: *token,
 				},
 			}); err != nil {
-				if err.Error() == "remote repository is empty" {
+				if errors.Is(err, transport.ErrEmptyRemoteRepository) {
 					log.Info("Skipped empty repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 
-					return
+					return nil
 				}
 
-				panic(err)
+				return err
 			}
 
 			log.Info("Cloned repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
-		}(repo)
+
+			return nil
+		})
 	}
 
-	if err := sem.Acquire(ctx, *concurrency); err != nil {
+	if err := g.Wait(); err != nil {
 		panic(err)
 	}
 }
