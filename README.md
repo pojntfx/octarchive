@@ -68,7 +68,7 @@ First, export your GitHub/Forgejo API token like so:
 $ export FORGE_TOKEN='mygithubtoken'
 ```
 
-If you're using Forgejo, also export your API endpoint like so:
+If you're using Forgejo (e.g. Codeberg), also export your API endpoint like so:
 
 ```shell
 $ export FORGE_API='https://codeberg.org/api/v1/'
@@ -94,10 +94,13 @@ For more information, see the [reference](#reference).
 
 In most cases, you'll want to schedule backups periodically; an excellent way to do so is to use [systemd Timers](https://wiki.archlinux.org/title/Systemd/Timers). To schedule a weekly backup of all of your repos, run the following:
 
+<details>
+  <summary>GitHub</summary>
+
 ```shell
-$ sudo tee /etc/systemd/system/octarchive.service<<'EOT'
+$ sudo tee /etc/systemd/system/octarchive-github.service<<'EOT'
 [Unit]
-Description=Octarchive backup
+Description=Octarchive backup (GitHub)
 
 [Service]
 Type=oneshot
@@ -108,9 +111,9 @@ Environment="FORGE_TOKEN=mygithubtoken"
 [Install]
 WantedBy=multi-user.target
 EOT
-$ sudo tee /etc/systemd/system/octarchive.timer<<'EOT'
+$ sudo tee /etc/systemd/system/octarchive-github.timer<<'EOT'
 [Unit]
-Description=Run Octarchive weekly
+Description=Run Octarchive weekly (GitHub)
 
 [Timer]
 OnCalendar=weekly
@@ -120,8 +123,45 @@ Persistent=true
 WantedBy=timers.target
 EOT
 $ sudo systemctl daemon-reload
-$ sudo systemctl enable octarchive.timer --now
+$ sudo systemctl enable octarchive-github.timer --now
 ```
+
+</details>
+
+<details>
+  <summary>Forgejo (Codeberg)</summary>
+
+```shell
+$ sudo tee /etc/systemd/system/octarchive-codeberg.service<<'EOT'
+[Unit]
+Description=Octarchive backup (Codeberg)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/octarchive --orgs
+Environment="HOME=/root"
+Environment="FORGE_TOKEN=mycodebergtoken"
+Environment="FORGE_API=https://codeberg.org/api/v1/"
+
+[Install]
+WantedBy=multi-user.target
+EOT
+$ sudo tee /etc/systemd/system/octarchive-codeberg.timer<<'EOT'
+[Unit]
+Description=Run Octarchive weekly (Codeberg)
+
+[Timer]
+OnCalendar=weekly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOT
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable octarchive-codeberg.timer --now
+```
+
+</details>
 
 Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service. If you'd like to clone from multiple GitHub/Forgejo accounts, simply set up a new timer for each.
 
