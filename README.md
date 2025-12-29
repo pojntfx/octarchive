@@ -81,7 +81,8 @@ $ octarchive --orgs
 {"level":"info","time":"2022-08-15T00:25:39+02:00","message":"Getting user"}
 {"level":"info","time":"2022-08-15T00:25:40+02:00","message":"Getting organizations for user"}
 # ...
-Cloning   6% [========>                                                                                                                                                           ] (16/263, 7 repo/s) [1s:32s]{"level":"info","cloneURL":"https://github.com/pojntfx/dwm.git","filePath":"/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data/1660518181/pojntfx/dwm","time":"2022-08-15T01:03:09+02:00","message":"Cloning repo"}
+Cloning  51% [============>             ] (114/223, 1 repo/s) [42s:1m42s]
+{"time":"2025-12-29T03:36:52.326114681-08:00","level":"INFO","msg":"Cloning repo","url":"https://api.github.com/user","cloneURL":"https://github.com/pojntfx/papapo.git","filePath":"/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data/api.github.com/1767008166/pojntfx/papapo"}
 # ...
 ```
 
@@ -122,7 +123,7 @@ $ sudo systemctl daemon-reload
 $ sudo systemctl enable octarchive.timer --now
 ```
 
-Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service.
+Note that this will create a fresh directory every time you run the backup, which might fill up your disk space quite quickly; if you want to instead remove the old backup every time you do a new one, append `--timestamp current` to the `ExecStart` line of the service. If you'd like to clone from multiple GitHub/Forgejo accounts, simply set up a new timer for each.
 
 You should find the repos in `/root/.local/share/octarchive/var/lib/octarchive/data`.
 

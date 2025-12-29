@@ -81,7 +81,13 @@ func main() {
 		)
 	}
 
-	u, err := url.JoinPath(*api, "user")
+	apiURL, err := url.Parse(*api)
+	if err != nil {
+		panic(err)
+	}
+	hostname := apiURL.Hostname()
+
+	u, err := url.JoinPath(apiURL.String(), "user")
 	if err != nil {
 		panic(err)
 	}
@@ -118,7 +124,7 @@ func main() {
 	if *orgs {
 		page := 1
 		for {
-			u, err := url.JoinPath(*api, "user", "orgs")
+			u, err := url.JoinPath(apiURL.String(), "user", "orgs")
 			if err != nil {
 				panic(err)
 			}
@@ -178,7 +184,7 @@ func main() {
 	for _, slug := range slugs {
 		page := 1
 		for {
-			u, err := url.JoinPath(*api, "users", slug, "repos")
+			u, err := url.JoinPath(apiURL.String(), "users", slug, "repos")
 			if err != nil {
 				panic(err)
 			}
@@ -227,7 +233,7 @@ func main() {
 					filePath string
 					cloneURL string
 				}{
-					filePath: filepath.Join(*dst, *timestamp, username, repoName),
+					filePath: filepath.Join(*dst, hostname, *timestamp, username, repoName),
 					cloneURL: repo.CloneURL,
 				})
 			}
@@ -261,8 +267,7 @@ func main() {
 	)
 
 	if *fresh {
-		if err := os.RemoveAll(filepath.Join(*dst, *timestamp)); err != nil {
-
+		if err := os.RemoveAll(filepath.Join(*dst, hostname, *timestamp)); err != nil {
 			panic(err)
 		}
 	}
