@@ -49,6 +49,7 @@ func main() {
 	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
 	concurrency := flag.Int("concurrency", runtime.NumCPU(), "Maximum amount of repositories to clone concurrently")
 	shallow := flag.Bool("shallow", false, "Perform a shallow clone with depth=1 and only the main branch")
+	retries := flag.Int("retries", 3, "Maximum number of retry attempts for each clone operation")
 
 	flag.Parse()
 
@@ -280,17 +281,11 @@ func main() {
 		g.Go(func() error {
 			defer bar.Add(1)
 
-			log.Info("Cloning repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
+			log := log.With("cloneURL", repo.cloneURL, "filePath", repo.filePath)
+
+			log.Info("Cloning repo")
 
 			bar.RenderBlank()
-
-			if err := os.RemoveAll(repo.filePath); err != nil {
-				return err
-			}
-
-			if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
-				return err
-			}
 
 			opts := &git.CloneOptions{
 				Progress: func() io.Writer {
@@ -312,19 +307,35 @@ func main() {
 				opts.SingleBranch = true
 			}
 
-			if _, err := git.PlainClone(repo.filePath, false, opts); err != nil {
-				if errors.Is(err, transport.ErrEmptyRemoteRepository) {
-					log.Info("Skipped empty repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
-
-					return nil
+			var lastErr error
+			for attempt := range *retries {
+				if err := os.RemoveAll(repo.filePath); err != nil {
+					return err
 				}
 
-				return err
+				if err := os.MkdirAll(repo.filePath, os.ModePerm); err != nil {
+					return err
+				}
+
+				if _, err := git.PlainClone(repo.filePath, false, opts); err != nil {
+					if errors.Is(err, transport.ErrEmptyRemoteRepository) {
+						log.Info("Skipped empty repo")
+
+						return nil
+					}
+
+					lastErr = err
+					log.Warn("Clone attempt failed", "attempt", attempt+1, "maxRetries", *retries, "err", err)
+
+					continue
+				}
+
+				log.Info("Cloned repo")
+
+				return nil
 			}
 
-			log.Info("Cloned repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
-
-			return nil
+			return lastErr
 		})
 	}
 
