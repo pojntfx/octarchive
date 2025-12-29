@@ -2,7 +2,7 @@
 
 # Octarchive
 
-Simple tool to back up all repos on a GitHub/Gitea account to a local folder.
+Simple tool to back up all repos on a GitHub/Forgejo account to a local folder.
 
 <br/>
 
@@ -14,7 +14,7 @@ Simple tool to back up all repos on a GitHub/Gitea account to a local folder.
 
 ## Overview
 
-Octarchive is a simple backup utility that clones all repos from a GitHub/Gitea account to a local folder for storage.
+Octarchive is a simple backup utility that clones all repos from a GitHub/Forgejo account to a local folder for storage.
 
 It enables you to:
 
@@ -62,16 +62,16 @@ You can find binaries for more operating systems and architectures on [GitHub re
 
 ### 1. Do a manual backup with `octarchive`
 
-First, export your GitHub (or Gitea) API token like so:
+First, export your GitHub (or Forgejo) API token like so:
 
 ```shell
-$ export GITHUB_TOKEN='mygithubtoken'
+$ export FORGE_TOKEN='mygithubtoken'
 ```
 
-If you're using Gitea, also export your API endpoint like so:
+If you're using Forgejo, also export your API endpoint like so:
 
 ```shell
-$ export GITHUB_API='https://try.gitea.io/api/'
+$ export FORGE_API='https://codeberg.org/api/v1/'
 ```
 
 Now, start the manual backup, including all the repos of the organizations that you're part of:
@@ -102,7 +102,7 @@ Description=Octarchive backup
 Type=oneshot
 ExecStart=/usr/local/bin/octarchive --orgs
 Environment="HOME=/root"
-Environment="GITHUB_TOKEN=mygithubtoken"
+Environment="FORGE_TOKEN=mygithubtoken"
 
 [Install]
 WantedBy=multi-user.target
@@ -138,7 +138,7 @@ For more information, see the [reference](#reference).
 $ octarchive --help
 Usage of octarchive:
   -api string
-        GitHub/Gitea API endpoint to use (can also be set using the GITHUB_API env variable) (default "https://api.github.com/")
+        GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable) (default "https://api.github.com/")
   -concurrency int
         Maximum amount of repositories to clone concurrently (default 20)
   -dst string
@@ -150,7 +150,7 @@ Usage of octarchive:
   -timestamp string
         Timestamp to use as the directory for this clone session (default "1660513831")
   -token string
-        GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)
+        GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)
   -verbose int
         Verbosity level (0 is disabled, default is info, 7 is trace) (default 5)
 ```
@@ -161,8 +161,8 @@ You can set the following environment variables, which correspond to the values 
 
 | Environment Variable | Flag      |
 | -------------------- | --------- |
-| `GITHUB_API`         | `--api`   |
-| `GITHUB_TOKEN`       | `--token` |
+| `FORGE_API`          | `--api`   |
+| `FORGE_TOKEN`        | `--token` |
 
 ## Acknowledgements
 
@@ -180,7 +180,7 @@ $ git clone https://github.com/pojntfx/octarchive.git
 $ cd octarchive
 $ make depend
 $ make && sudo make install
-$ export GITHUB_TOKEN='mygithubtoken'
+$ export FORGE_TOKEN='mygithubtoken'
 $ octarchive
 ```
 
@@ -188,6 +188,6 @@ Have any questions or need help? Chat with us [on Matrix](https://matrix.to/#/#o
 
 ## License
 
-Octarchive (c) 2024 Felicitas Pojtinger and contributors
+Octarchive (c) 2025 Felicitas Pojtinger and contributors
 
 SPDX-License-Identifier: AGPL-3.0

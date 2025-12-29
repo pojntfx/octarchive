@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -36,8 +37,8 @@ func main() {
 
 	verbose := flag.Int("verbose", 5, "Verbosity level (0 is disabled, default is info, 7 is trace)")
 	orgs := flag.Bool("orgs", false, "Also clone repos of all orgs that the user is part of")
-	api := flag.String("api", "https://api.github.com/", "GitHub/Gitea API endpoint to use (can also be set using the GITHUB_API env variable)")
-	token := flag.String("token", "", "GitHub/Gitea API access token (can also be set using the GITHUB_TOKEN env variable)")
+	api := flag.String("api", "https://api.github.com/", "GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable)")
+	token := flag.String("token", "", "GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)")
 	dst := flag.String("dst", filepath.Join(home, ".local", "share", "octarchive", "var", "lib", "octarchive", "data"), "Base directory to clone repos into")
 	timestamp := flag.String("timestamp", fmt.Sprintf("%v", time.Now().Unix()), "Timestamp to use as the directory for this clone session")
 	fresh := flag.Bool("fresh", false, "Clear timestamp directory before starting to clone")
@@ -64,12 +65,12 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.TraceLevel)
 	}
 
-	if *api == "" {
-		*api = os.Getenv("GITHUB_API")
+	if apiEnv := os.Getenv("FORGE_API"); apiEnv != "" {
+		*api = apiEnv
 	}
 
-	if *token == "" {
-		*token = os.Getenv("GITHUB_TOKEN")
+	if tokenEnv := os.Getenv("FORGE_TOKEN"); tokenEnv != "" {
+		*token = tokenEnv
 	}
 
 	if strings.TrimSpace(*token) == "" {
@@ -93,7 +94,12 @@ func main() {
 
 	log.Info().Msg("Getting user")
 
-	res, err := ghttp.Get(fmt.Sprintf("%vuser", *api))
+	u, err := url.JoinPath(*api, "user")
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := ghttp.Get(u)
 	if err != nil {
 		panic(err)
 	}
@@ -123,7 +129,22 @@ func main() {
 	if *orgs {
 		page := 1
 		for {
-			res, err := ghttp.Get(fmt.Sprintf("%vuser/orgs?per_page=100&page=%v", *api, page))
+			u, err := url.JoinPath(*api, "user", "orgs")
+			if err != nil {
+				panic(err)
+			}
+
+			parsed, err := url.Parse(u)
+			if err != nil {
+				panic(err)
+			}
+
+			q := parsed.Query()
+			q.Set("per_page", "100")
+			q.Set("page", fmt.Sprintf("%v", page))
+			parsed.RawQuery = q.Encode()
+
+			res, err := ghttp.Get(parsed.String())
 			if err != nil {
 				panic(err)
 			}
