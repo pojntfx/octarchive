@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -18,8 +19,6 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	gtransport "github.com/go-git/go-git/v5/plumbing/transport/http"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/semaphore"
@@ -35,7 +34,7 @@ func main() {
 		panic(err)
 	}
 
-	verbose := flag.Int("verbose", 5, "Verbosity level (0 is disabled, default is info, 7 is trace)")
+	verbosity := flag.String("verbosity", "info", "Log level (debug, info, warn, error)")
 	orgs := flag.Bool("orgs", false, "Also clone repos of all orgs that the user is part of")
 	api := flag.String("api", "https://api.github.com/", "GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable)")
 	token := flag.String("token", "", "GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)")
@@ -46,24 +45,14 @@ func main() {
 
 	flag.Parse()
 
-	switch *verbose {
-	case 0:
-		zerolog.SetGlobalLevel(zerolog.Disabled)
-	case 1:
-		zerolog.SetGlobalLevel(zerolog.PanicLevel)
-	case 2:
-		zerolog.SetGlobalLevel(zerolog.FatalLevel)
-	case 3:
-		zerolog.SetGlobalLevel(zerolog.ErrorLevel)
-	case 4:
-		zerolog.SetGlobalLevel(zerolog.WarnLevel)
-	case 5:
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	case 6:
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	default:
-		zerolog.SetGlobalLevel(zerolog.TraceLevel)
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(*verbosity)); err != nil {
+		panic(err)
 	}
+
+	log := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: level,
+	}))
 
 	if apiEnv := os.Getenv("FORGE_API"); apiEnv != "" {
 		*api = apiEnv
@@ -92,12 +81,14 @@ func main() {
 		)
 	}
 
-	log.Info().Msg("Getting user")
-
 	u, err := url.JoinPath(*api, "user")
 	if err != nil {
 		panic(err)
 	}
+
+	log = log.With("url", u)
+
+	log.Info("Getting user")
 
 	res, err := ghttp.Get(u)
 	if err != nil {
@@ -119,11 +110,9 @@ func main() {
 		panic(err)
 	}
 
-	log.Debug().
-		Str("user", user.Login).
-		Msg("Got user")
+	log.Debug("Got user", "user", user.Login)
 
-	log.Info().Msg("Getting organizations for user")
+	log.Info("Getting organizations for user")
 
 	slugs := []string{user.Login}
 	if *orgs {
@@ -143,6 +132,10 @@ func main() {
 			q.Set("per_page", "100")
 			q.Set("page", fmt.Sprintf("%v", page))
 			parsed.RawQuery = q.Encode()
+
+			log := log.With("url", parsed.String())
+
+			log.Debug("Fetching organizations page", "page", page)
 
 			res, err := ghttp.Get(parsed.String())
 			if err != nil {
@@ -176,9 +169,7 @@ func main() {
 		}
 	}
 
-	log.Debug().
-		Strs("organizations", slugs).
-		Msg("Got organizations for user")
+	log.Debug("Got organizations for user", "organizations", slugs)
 
 	var repos []struct {
 		filePath string
@@ -202,6 +193,10 @@ func main() {
 			q.Set("page", fmt.Sprintf("%v", page))
 			parsed.RawQuery = q.Encode()
 
+			log := log.With("url", parsed.String())
+
+			log.Debug("Fetching repos page", "slug", slug, "page", page)
+
 			res, err := ghttp.Get(parsed.String())
 			if err != nil {
 				panic(err)
@@ -224,11 +219,7 @@ func main() {
 			}
 
 			for _, repo := range orgRepos {
-				log.Debug().
-					Str("organization", slug).
-					Str("fullName", repo.FullName).
-					Str("cloneURL", repo.CloneURL).
-					Msg("Got repo for organization")
+				log.Debug("Got repo for organization", "organization", slug, "fullName", repo.FullName, "cloneURL", repo.CloneURL)
 
 				username, repoName := path.Split(repo.FullName)
 
@@ -290,10 +281,7 @@ func main() {
 				sem.Release(1)
 			}()
 
-			log.Info().
-				Str("cloneURL", repo.cloneURL).
-				Str("filePath", repo.filePath).
-				Msg("Cloning repo")
+			log.Info("Cloning repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 
 			bar.RenderBlank()
 
@@ -307,7 +295,7 @@ func main() {
 
 			if _, err := git.PlainClone(repo.filePath, false, &git.CloneOptions{
 				Progress: func() io.Writer {
-					if *verbose > 5 {
+					if level == slog.LevelDebug {
 						return os.Stderr
 					}
 
@@ -320,10 +308,7 @@ func main() {
 				},
 			}); err != nil {
 				if err.Error() == "remote repository is empty" {
-					log.Info().
-						Str("cloneURL", repo.cloneURL).
-						Str("filePath", repo.filePath).
-						Msg("Skipped empty repo")
+					log.Info("Skipped empty repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 
 					return
 				}
@@ -331,10 +316,7 @@ func main() {
 				panic(err)
 			}
 
-			log.Info().
-				Str("cloneURL", repo.cloneURL).
-				Str("filePath", repo.filePath).
-				Msg("Cloned repo")
+			log.Info("Cloned repo", "cloneURL", repo.cloneURL, "filePath", repo.filePath)
 		}(repo)
 	}
 

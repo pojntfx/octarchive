@@ -18,8 +18,8 @@ Octarchive is a simple backup utility that clones all repos from a GitHub/Forgej
 
 It enables you to:
 
-- **Backup your work**: In case your GitHub account is breached or gets banned, Octarchive ensures you always have a local copy available.
-- **Mirror your account**: If your internet connection is slow or GitHub is banned in your jurisdiction, you can use Octarchive and a web server to mirror your repos.
+- **Backup your work**: In case your GitHub/Forgejo account is breached or gets banned, Octarchive ensures you always have a local copy available.
+- **Mirror your account**: If your internet connection is slow or GitHub/Forgejo is banned in your jurisdiction, you can use Octarchive and a web server to mirror your repos.
 - **Automate processes**: By exposing all of your repos to the filesystem, otherwise tedious processes such as bumping copyright dates or updating names become easy.
 
 ## Installation
@@ -62,7 +62,7 @@ You can find binaries for more operating systems and architectures on [GitHub re
 
 ### 1. Do a manual backup with `octarchive`
 
-First, export your GitHub (or Forgejo) API token like so:
+First, export your GitHub/Forgejo API token like so:
 
 ```shell
 $ export FORGE_TOKEN='mygithubtoken'
@@ -140,7 +140,7 @@ Usage of octarchive:
   -api string
         GitHub/Forgejo API endpoint to use (can also be set using the FORGE_API env variable) (default "https://api.github.com/")
   -concurrency int
-        Maximum amount of repositories to clone concurrently (default 20)
+        Maximum amount of repositories to clone concurrently (default 24)
   -dst string
         Base directory to clone repos into (default "/home/pojntfx/.local/share/octarchive/var/lib/octarchive/data")
   -fresh
@@ -148,11 +148,11 @@ Usage of octarchive:
   -orgs
         Also clone repos of all orgs that the user is part of
   -timestamp string
-        Timestamp to use as the directory for this clone session (default "1660513831")
+        Timestamp to use as the directory for this clone session (default "1767007525")
   -token string
         GitHub/Forgejo API access token (can also be set using the FORGE_TOKEN env variable)
-  -verbose int
-        Verbosity level (0 is disabled, default is info, 7 is trace) (default 5)
+  -verbosity string
+        Log level (debug, info, warn, error) (default "info")
 ```
 
 ### Environment Variables

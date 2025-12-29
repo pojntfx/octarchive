@@ -7,11 +7,11 @@ WORKDIR /data
 
 # Build the release
 COPY . .
-RUN make build/weron
+RUN make build/octarchive
 
 # Extract the release
 RUN mkdir -p /out
-RUN cp out/weron /out/weron
+RUN cp out/octarchive /out/octarchive
 
 # Release container
 FROM debian:trixie
@@ -21,7 +21,7 @@ RUN apt update
 RUN apt install -y ca-certificates
 
 # Add the release
-COPY --from=build /out/weron /usr/local/bin/weron
+COPY --from=build /out/octarchive /usr/local/bin/octarchive
 
-CMD /usr/local/bin/weron
+CMD /usr/local/bin/octarchive
 
