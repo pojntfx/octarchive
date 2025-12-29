@@ -187,7 +187,22 @@ func main() {
 	for _, slug := range slugs {
 		page := 1
 		for {
-			res, err := ghttp.Get(fmt.Sprintf("%vusers/%v/repos?per_page=100&page=%v", *api, slug, page))
+			u, err := url.JoinPath(*api, "users", slug, "repos")
+			if err != nil {
+				panic(err)
+			}
+
+			parsed, err := url.Parse(u)
+			if err != nil {
+				panic(err)
+			}
+
+			q := parsed.Query()
+			q.Set("per_page", "100")
+			q.Set("page", fmt.Sprintf("%v", page))
+			parsed.RawQuery = q.Encode()
+
+			res, err := ghttp.Get(parsed.String())
 			if err != nil {
 				panic(err)
 			}
